@@ -13,7 +13,7 @@ eval_bundle:
   rubric: ./rubric.md
 
 agent:
-  model: gemini-2.0-flash
+  model: gemini-2.5-flash
   prompt: ./prompt.md
   temperature: 0.2
   max_tokens: 256
@@ -62,7 +62,7 @@ pipeline:
         with:
           from: test.ds
           rubric: ./rubric.md
-          model: gemini-2.0-flash
+          model: gemini-2.5-flash
           threshold: 0.65
 
     pass_if:
