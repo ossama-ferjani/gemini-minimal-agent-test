@@ -1,0 +1,6 @@
+# Install into the same Python environment Kyklos uses for steps (see kyklos-server.yaml server.python_venv).
+google-generativeai>=0.8.0
+
+# Used by kyklos/llm-judge (DeepEval + LiteLLM → Gemini with GOOGLE_API_KEY).
+deepeval>=3.0.0
+litellm>=1.0.0

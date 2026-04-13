@@ -1,0 +1,99 @@
+# Kyklos pipeline: Gemini agent + lint, snapshot, dataset run, semantic check, LLM judge (Gemini), cost/latency gates.
+#
+# Copy this folder to your own Git repo, set `repository.url` below (or register the repo in Kyklos),
+# and ensure GOOGLE_API_KEY is available on the Kyklos host (see README).
+#
+version: "1.0"
+name: gemini-minimal-demo
+
+eval_bundle:
+  id: gemini-minimal-v1
+  prompt: ./prompt.md
+  dataset: ./data/hello.jsonl
+  rubric: ./rubric.md
+
+agent:
+  model: gemini-2.0-flash
+  prompt: ./prompt.md
+  temperature: 0.2
+  max_tokens: 256
+  runner:
+    type: gemini
+
+env:
+  GOOGLE_API_KEY: $GOOGLE_API_KEY
+
+triggers:
+  - on: manual
+
+# After you push this project to GitHub, uncomment and set your HTTPS clone URL (and branch).
+# Alternatively, leave this commented and register the same repo in the Kyklos UI / kyklos-server.yaml.
+# repository:
+#   url: https://github.com/YOUR_GITHUB_USER/YOUR_REPO_NAME.git
+#   branch: main
+#   # token_env: GITHUB_TOKEN   # optional: PAT for private repos (HTTPS clone)
+
+pipeline:
+  - name: build
+    steps:
+      - uses: kyklos/lint
+      - uses: kyklos/snapshot
+
+  - name: test
+    steps:
+      - uses: kyklos/run-dataset
+        name: ds
+        with:
+          dataset: ./data/hello.jsonl
+          concurrency: 2
+
+      # token = deterministic overlap; no OpenAI key required (Gemini-only for the agent).
+      - uses: kyklos/semantic-similarity
+        name: sim
+        with:
+          from: test.ds
+          dataset: ./data/hello.jsonl
+          threshold: 0.45
+          method: token
+
+      # LLM-as-judge via DeepEval + LiteLLM — same GOOGLE_API_KEY as the agent (model: gemini-… → gemini/gemini-…).
+      - uses: kyklos/llm-judge
+        name: judge
+        with:
+          from: test.ds
+          rubric: ./rubric.md
+          model: gemini-2.0-flash
+          threshold: 0.65
+
+    pass_if:
+      ds.success_rate: ">= 1.0"
+      sim.avg_similarity: ">= 0.45"
+      judge.score: ">= 0.65"
+
+    on_fail:
+      then: abort
+
+  - name: evaluate
+    steps:
+      - uses: kyklos/cost-check
+        name: cost
+        with:
+          from: test.ds
+          max_usd: 0.25
+
+      - uses: kyklos/latency-check
+        name: lat
+        with:
+          from: test.ds
+          max_p95_ms: 120000
+
+    pass_if:
+      cost.avg_cost_per_run: "<= 0.25"
+      lat.p95_ms: "<= 120000"
+
+    on_fail:
+      then: abort
+
+notify:
+  on: [passed, failed]
+
