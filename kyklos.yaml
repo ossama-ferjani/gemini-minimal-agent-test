@@ -21,7 +21,7 @@ agent:
     type: gemini
 
 env:
-  GOOGLE_API_KEY: $GOOGLE_API_KEY
+  GOOGLE_API_KEY: AIzaSyB1reDtqz7MlDyYwgGClooNFM2-p53TMoM
 
 triggers:
   - on: manual
